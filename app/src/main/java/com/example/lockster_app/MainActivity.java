@@ -1,6 +1,6 @@
 package com.example.lockster_app;
 
-import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;//AppCompatActivity is a base class for activities that use the support library action bar features.
 
 import android.os.Bundle;
 
@@ -27,6 +27,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+import android.os.Handler;//needed for handling delayed tasks using a Handler
+import java.text.SimpleDateFormat;//to get date format to name images (here)
+import java.util.Date;//
+import java.util.*;
+
+
 public class MainActivity extends AppCompatActivity implements SensorEventListener
 {
 
@@ -40,14 +46,18 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private ProcessCameraProvider cameraProvider;
     private ImageCapture imageCapture;
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    @Override// intended to override a method in the parent class (in this case, AppCompatActivity).
+    protected void onCreate(Bundle savedInstanceState)
+    {
+        super.onCreate(savedInstanceState); //calls the onCreate method of the parent class
+                                            // (AppCompatActivity) to perform necessary setup. It's essential to call this to
+                                            // ensure that the activity's initialization is handled properly.
         setContentView(R.layout.activity_main);
 
-        Button enableButton = findViewById(R.id.enableButton);
+        Button enableButton = findViewById(R.id.enableButton);//initializes a Button object by finding the button with the ID "enableButton" in the currently set content view. It prepares to listen for clicks on this button.java
 
-        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+
+            sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
         enableButton.setOnClickListener(new View.OnClickListener()
@@ -87,7 +97,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         imageCapture = builder.build();
 
         CameraSelector cameraSelector = new CameraSelector.Builder()
-                .requireLensFacing(CameraSelector.LENS_FACING_BACK)
+                .requireLensFacing(CameraSelector.LENS_FACING_FRONT)//selecting front camera
                 .build();
 
         cameraProvider.unbindAll();
@@ -136,22 +146,57 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     }
 
+    private boolean capturingImages = false;
+    private int capturedImageCount = 0;
+
     @Override
     public void onSensorChanged(SensorEvent event) {
         float zAcceleration = event.values[2];
 
         if (zAcceleration > 9.0f) {
             // Phone is picked up (you can adjust the threshold)
-            captureImage();
+            if (!capturingImages) {
+                capturingImages = true;
+                capturedImageCount = 0;
+                startImageCapture(); //calls the image capture function each time accelerometer value changes
+            }
+        } else {
+            capturingImages = false;
         }
     }
+
+    private void startImageCapture() {
+        final long captureDelayMillis = 1000; // 1 second
+        final int maxImagesToCapture = 5;
+
+        if (capturedImageCount < maxImagesToCapture) {
+            // Capture an image and schedule the next capture after the delay
+            captureImage();
+            capturedImageCount++;
+
+            new Handler().postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    startImageCapture();  //loop
+                }
+            }, captureDelayMillis);
+        } else {
+            capturingImages = false;
+        }
+    }
+
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
     }
 
+    //storing of image
     private void captureImage() {
-        File file = new File(getExternalMediaDirs()[0], "security_image.jpg");
+        // Generate a unique filename based on the current time
+        String timestamp = new SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(new Date());
+        String imageFileName = "IMG_" + timestamp + ".jpg";
+
+        File file = new File(getExternalMediaDirs()[0], imageFileName);
         ImageCapture.OutputFileOptions outputFileOptions = new ImageCapture.OutputFileOptions.Builder(file).build();
 
         imageCapture.takePicture(outputFileOptions, executor, new ImageCapture.OnImageSavedCallback() {
@@ -166,6 +211,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
             }
         });
     }
+
 
     @Override
     protected void onDestroy() {
