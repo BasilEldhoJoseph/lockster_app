@@ -14,5 +14,17 @@
         android:layout_width="262dp"
         android:layout_height="200dp"
         android:layout_centerInParent="true"
-        android:text="engage lockster" />
+        android:text="engage lockster"
+        />
+    <Button
+        android:id="@+id/viewPhotosButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="enter email"
+        android:layout_gravity="center"
+        android:layout_marginTop="16dp"
+        />
+
+
+
 </RelativeLayout>

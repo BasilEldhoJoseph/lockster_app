@@ -19,6 +19,8 @@ import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageCapture;
 import androidx.camera.core.ImageCaptureException;
 import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.core.content.ContextCompat;
+import com.google.common.util.concurrent.ListenableFuture;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -31,6 +33,19 @@ import android.os.Handler;//needed for handling delayed tasks using a Handler
 import java.text.SimpleDateFormat;//to get date format to name images (here)
 import java.util.Date;//
 import java.util.*;
+
+
+//for email
+import java.util.Properties;
+import javax.mail.*;
+import javax.mail.internet.*;
+
+import javax.activation.DataHandler;
+import javax.activation.DataSource;
+import javax.activation.FileDataSource;
+
+
+
 
 
 public class MainActivity extends AppCompatActivity implements SensorEventListener
@@ -46,18 +61,48 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private ProcessCameraProvider cameraProvider;
     private ImageCapture imageCapture;
 
+
+    // Email configuration
+    private static final String EMAIL_USERNAME = "your_email@gmail.com";
+    private static final String EMAIL_PASSWORD = "your_email_password";
+    private static final String EMAIL_TO = "basil.eldho1414@gmail.com";
+    private static final String EMAIL_SUBJECT = "Security Camera Photo";
+
+    // Session object for email sending
+    private Session session;
+
+
+
+
     @Override// intended to override a method in the parent class (in this case, AppCompatActivity).
     protected void onCreate(Bundle savedInstanceState)
     {
         super.onCreate(savedInstanceState); //calls the onCreate method of the parent class
-                                            // (AppCompatActivity) to perform necessary setup. It's essential to call this to
-                                            // ensure that the activity's initialization is handled properly.
+        // (AppCompatActivity) to perform necessary setup. It's essential to call this to
+        // ensure that the activity's initialization is handled properly.
         setContentView(R.layout.activity_main);
+
+
+        // Initialize email sending properties
+        Properties properties = new Properties();
+        properties.put("mail.smtp.auth", "true");
+        properties.put("mail.smtp.starttls.enable", "true");
+        properties.put("mail.smtp.host", "smtp.gmail.com");
+        properties.put("mail.smtp.port", "587");
+        //Properties for configuring the email sending process (SMTP settings) were added in the onCreate method
+
+        // Initialize email session
+        session = Session.getInstance(properties, new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(EMAIL_USERNAME, EMAIL_PASSWORD);
+            }
+        });
 
         Button enableButton = findViewById(R.id.enableButton);//initializes a Button object by finding the button with the ID "enableButton" in the currently set content view. It prepares to listen for clicks on this button.java
 
 
-            sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
+        sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
         enableButton.setOnClickListener(new View.OnClickListener()
@@ -191,7 +236,8 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     //storing of image
-    private void captureImage() {
+    private void captureImage()
+    {
         // Generate a unique filename based on the current time
         String timestamp = new SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(new Date());
         String imageFileName = "IMG_" + timestamp + ".jpg";
@@ -210,7 +256,55 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 // Handle error
             }
         });
+        imageCapture.takePicture(outputFileOptions, executor, new ImageCapture.OnImageSavedCallback() {
+            @Override
+            public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
+                // This is where you should call the sendEmail method after capturing the image.
+                File savedImageFile = new File(outputFileResults.getSavedUri().getPath());
+                sendEmail(savedImageFile); // Send email after capturing the image
+            }
+
+            @Override
+            public void onError(@NonNull ImageCaptureException exception) {
+                exception.printStackTrace();
+                // Handle error
+            }
+        });
     }
+    // New method for sending email
+    private void sendEmail(File attachment)
+    {
+        try {
+            // Create MimeMessage object
+            Message message = new MimeMessage(session);
+            // Set sender email address
+            message.setFrom(new InternetAddress(EMAIL_USERNAME));
+            // Set recipient email address
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(EMAIL_TO));
+            // Set email subject
+            message.setSubject(EMAIL_SUBJECT);
+
+            // Create MimeBodyPart for attachment
+            BodyPart messageBodyPart = new MimeBodyPart();
+            DataSource source = new FileDataSource(attachment);
+            messageBodyPart.setDataHandler(new DataHandler(source));
+            messageBodyPart.setFileName(attachment.getName());
+
+            // Create Multipart object
+            Multipart multipart = new MimeMultipart();
+            multipart.addBodyPart(messageBodyPart);
+
+            // Set the content of the message
+            message.setContent(multipart);
+
+            // Send the email
+            Transport.send(message);
+
+        } catch (MessagingException e) {
+            e.printStackTrace();
+        }
+    }
+
 
 
     @Override
