@@ -1,6 +1,6 @@
 package com.example.lockster_app;
 
-import androidx.appcompat.app.AppCompatActivity;//AppCompatActivity is a base class for activities that use the support library action bar features.
+import androidx.appcompat.app.AppCompatActivity;
 
 import android.os.Bundle;
 
@@ -29,27 +29,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-import android.os.Handler;//needed for handling delayed tasks using a Handler
-import java.text.SimpleDateFormat;//to get date format to name images (here)
-import java.util.Date;//
+import android.os.Handler;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.*;
 
 
-//for email
-import java.util.Properties;
-import javax.mail.*;
-import javax.mail.internet.*;
-
-import javax.activation.DataHandler;
-import javax.activation.DataSource;
-import javax.activation.FileDataSource;
-
-
-
-
-
-public class MainActivity extends AppCompatActivity implements SensorEventListener
-{
+public class MainActivity extends AppCompatActivity implements SensorEventListener {
 
     private static final int REQUEST_CODE_PERMISSIONS = 101;
     private static final String[] REQUIRED_PERMISSIONS = {Manifest.permission.CAMERA};
@@ -61,55 +47,19 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     private ProcessCameraProvider cameraProvider;
     private ImageCapture imageCapture;
 
-
-    // Email configuration
-    private static final String EMAIL_USERNAME = "your_email@gmail.com";
-    private static final String EMAIL_PASSWORD = "your_email_password";
-    private static final String EMAIL_TO = "basil.eldho1414@gmail.com";
-    private static final String EMAIL_SUBJECT = "Security Camera Photo";
-
-    // Session object for email sending
-    private Session session;
-
-
-
-
-    @Override// intended to override a method in the parent class (in this case, AppCompatActivity).
-    protected void onCreate(Bundle savedInstanceState)
-    {
-        super.onCreate(savedInstanceState); //calls the onCreate method of the parent class
-        // (AppCompatActivity) to perform necessary setup. It's essential to call this to
-        // ensure that the activity's initialization is handled properly.
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-
-        // Initialize email sending properties
-        Properties properties = new Properties();
-        properties.put("mail.smtp.auth", "true");
-        properties.put("mail.smtp.starttls.enable", "true");
-        properties.put("mail.smtp.host", "smtp.gmail.com");
-        properties.put("mail.smtp.port", "587");
-        //Properties for configuring the email sending process (SMTP settings) were added in the onCreate method
-
-        // Initialize email session
-        session = Session.getInstance(properties, new Authenticator() {
-            @Override
-            protected PasswordAuthentication getPasswordAuthentication() {
-                return new PasswordAuthentication(EMAIL_USERNAME, EMAIL_PASSWORD);
-            }
-        });
-
-        Button enableButton = findViewById(R.id.enableButton);//initializes a Button object by finding the button with the ID "enableButton" in the currently set content view. It prepares to listen for clicks on this button.java
-
+        Button enableButton = findViewById(R.id.enableButton);
 
         sensorManager = (SensorManager) getSystemService(SENSOR_SERVICE);
         accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
 
-        enableButton.setOnClickListener(new View.OnClickListener()
-        {
+        enableButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onClick(View v)
-            {
+            public void onClick(View v) {
                 toggleSecurityCamera();
             }
         });
@@ -142,7 +92,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         imageCapture = builder.build();
 
         CameraSelector cameraSelector = new CameraSelector.Builder()
-                .requireLensFacing(CameraSelector.LENS_FACING_FRONT)//selecting front camera
+                .requireLensFacing(CameraSelector.LENS_FACING_FRONT)
                 .build();
 
         cameraProvider.unbindAll();
@@ -179,8 +129,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults)
-    {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_CODE_PERMISSIONS) {
             if (allPermissionsGranted()) {
@@ -199,11 +148,10 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         float zAcceleration = event.values[2];
 
         if (zAcceleration > 9.0f) {
-            // Phone is picked up (you can adjust the threshold)
             if (!capturingImages) {
                 capturingImages = true;
                 capturedImageCount = 0;
-                startImageCapture(); //calls the image capture function each time accelerometer value changes
+                startImageCapture();
             }
         } else {
             capturingImages = false;
@@ -211,18 +159,17 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
     }
 
     private void startImageCapture() {
-        final long captureDelayMillis = 1000; // 1 second
+        final long captureDelayMillis = 1000;
         final int maxImagesToCapture = 5;
 
         if (capturedImageCount < maxImagesToCapture) {
-            // Capture an image and schedule the next capture after the delay
             captureImage();
             capturedImageCount++;
 
             new Handler().postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    startImageCapture();  //loop
+                    startImageCapture();
                 }
             }, captureDelayMillis);
         } else {
@@ -230,15 +177,11 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         }
     }
 
-
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
     }
 
-    //storing of image
-    private void captureImage()
-    {
-        // Generate a unique filename based on the current time
+    private void captureImage() {
         String timestamp = new SimpleDateFormat("yyyyMMddHHmmss", Locale.getDefault()).format(new Date());
         String imageFileName = "IMG_" + timestamp + ".jpg";
 
@@ -256,56 +199,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                 // Handle error
             }
         });
-        imageCapture.takePicture(outputFileOptions, executor, new ImageCapture.OnImageSavedCallback() {
-            @Override
-            public void onImageSaved(@NonNull ImageCapture.OutputFileResults outputFileResults) {
-                // This is where you should call the sendEmail method after capturing the image.
-                File savedImageFile = new File(outputFileResults.getSavedUri().getPath());
-                sendEmail(savedImageFile); // Send email after capturing the image
-            }
-
-            @Override
-            public void onError(@NonNull ImageCaptureException exception) {
-                exception.printStackTrace();
-                // Handle error
-            }
-        });
     }
-    // New method for sending email
-    private void sendEmail(File attachment)
-    {
-        try {
-            // Create MimeMessage object
-            Message message = new MimeMessage(session);
-            // Set sender email address
-            message.setFrom(new InternetAddress(EMAIL_USERNAME));
-            // Set recipient email address
-            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(EMAIL_TO));
-            // Set email subject
-            message.setSubject(EMAIL_SUBJECT);
-
-            // Create MimeBodyPart for attachment
-            BodyPart messageBodyPart = new MimeBodyPart();
-            DataSource source = new FileDataSource(attachment);
-            messageBodyPart.setDataHandler(new DataHandler(source));
-            messageBodyPart.setFileName(attachment.getName());
-
-            // Create Multipart object
-            Multipart multipart = new MimeMultipart();
-            multipart.addBodyPart(messageBodyPart);
-
-            // Set the content of the message
-            message.setContent(multipart);
-
-            // Send the email
-            Transport.send(message);
-
-        } catch (MessagingException e) {
-            e.printStackTrace();
-        }
-    }
-
-
 
     @Override
     protected void onDestroy() {
